@@ -90,8 +90,8 @@ function openModal(id){const m=document.getElementById(id);m.classList.add('open
 const bookingState={method:'google_meet',times:[]};
 const bookingStatus=(message,type='')=>{const el=$('#bookingStatus');el.textContent=message;el.className='bookingStatus'+(type?' '+type:'')};
 function localToday(){const d=new Date();return new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,10)}
-function setBookingMethod(method){bookingState.method=method;$('#bookingMethod').value=method;$('.bookingChoice').forEach(b=>{const active=b.dataset.method===method;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active?'true':'false')});const phone=$('#bookingPhone');phone.required=method==='whatsapp';}
-$('.bookingChoice').forEach(b=>b.addEventListener('click',()=>{setBookingMethod(b.dataset.method);if($('#bookingDate').value)loadBookingSlots()}));
+function setBookingMethod(method){bookingState.method=method;$('#bookingMethod').value=method;all('.bookingChoice').forEach(b=>{const active=b.dataset.method===method;b.classList.toggle('active',active);b.setAttribute('aria-pressed',active?'true':'false')});const phone=$('#bookingPhone');phone.required=method==='whatsapp';}
+all('.bookingChoice').forEach(b=>b.addEventListener('click',()=>{setBookingMethod(b.dataset.method);if($('#bookingDate').value)loadBookingSlots()}));
 
 
 $('#bookingDate').addEventListener('change',loadBookingAvailability); $('#bookingTime').addEventListener('change',loadBookingAvailability);
