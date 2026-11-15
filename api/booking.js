@@ -1,7 +1,7 @@
 const TZ = "Africa/Lagos";
 const OWNER_EMAIL = process.env.BOOKING_OWNER_EMAIL || "chideraemmanuelokpala@gmail.com";
 const CALENDAR_ID = process.env.GOOGLE_CALENDAR_ID || "primary";
-const DURATION = 30;
+const HOLD_MINUTES = 60;
 const OPEN_MINUTES = 8 * 60 + 30;
 const CLOSE_MINUTES = 18 * 60;
 
@@ -23,12 +23,12 @@ function weekday(date) {
 function localIso(date, time) { return date + "T" + time + ":00+01:00"; }
 function makeSlots(date, busy) {
   const slots = [];
-  for (let minute = OPEN_MINUTES; minute + DURATION <= CLOSE_MINUTES; minute += DURATION) {
+  for (let minute = OPEN_MINUTES; minute + HOLD_MINUTES <= CLOSE_MINUTES; minute += 15) {
     const hh = String(Math.floor(minute / 60)).padStart(2, "0");
     const mm = String(minute % 60).padStart(2, "0");
     const time = hh + ":" + mm;
     const start = new Date(localIso(date, time));
-    const end = new Date(start.getTime() + DURATION * 60000);
+    const end = new Date(start.getTime() + HOLD_MINUTES * 60000);
     const overlaps = busy.some(period => new Date(period.start) < end && new Date(period.end) > start);
     const past = start.getTime() <= Date.now();
     slots.push({ time, label: new Intl.DateTimeFormat("en", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: TZ }).format(start), available: !overlaps && !past });
@@ -92,7 +92,7 @@ async function createZoomMeeting(startIso, name, email, topic) {
       topic: "Northline meeting — " + name,
       type: 2,
       start_time: start.toISOString(),
-      duration: DURATION,
+      duration: HOLD_MINUTES,
       timezone: TZ,
       agenda: [topic, "Booked by: " + name, "Email: " + email].filter(Boolean).join("\n"),
       settings: { join_before_host: false, waiting_room: true, approval_type: 2 }
@@ -157,11 +157,19 @@ async function handler(req, res) {
     const date = req.query.date;
     if (!validDate(date)) return reply(res, 400, { error: "Choose a valid date." });
     if (!configured()) return reply(res, 503, { error: "The booking calendar is not connected yet. Please contact us by email to arrange a meeting." });
-    if (weekday(date) === 0 || weekday(date) === 6) return reply(res, 200, { slots: [], timeZone: TZ, durationMinutes: DURATION });
+    const time = req.query.time;
+    if (weekday(date) === 0 || weekday(date) === 6) return reply(res, 200, { available: false, message: "Bookings are available Monday to Friday only.", timeZone: TZ, holdMinutes: HOLD_MINUTES });
+    if (!/^\d{2}:\d{2}$/.test(time || "")) return reply(res, 400, { error: "Choose a preferred start time." });
+    const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+    if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES) return reply(res, 200, { available: false, message: "Choose a start time between 8:30 a.m. and 5:00 p.m. Lagos time.", timeZone: TZ, holdMinutes: HOLD_MINUTES });
     try {
       const token = await googleToken();
       const busy = await getBusy(date, token);
-      return reply(res, 200, { slots: makeSlots(date, busy), timeZone: TZ, durationMinutes: DURATION });
+      const start = new Date(localIso(date, time));
+      const end = new Date(start.getTime() + HOLD_MINUTES * 60000);
+      const past = start.getTime() <= Date.now();
+      const overlaps = busy.some(period => new Date(period.start) < end && new Date(period.end) > start);
+      return reply(res, 200, { available: !past && !overlaps, message: past ? "That time has already passed." : overlaps ? "That start time overlaps another calendar event. Please choose another time." : "Available.", timeZone: TZ, holdMinutes: HOLD_MINUTES });
     } catch (error) {
       console.error("booking availability:", error.message);
       return reply(res, 502, { error: "We could not read the booking calendar. Please try again shortly." });
@@ -176,12 +184,12 @@ async function handler(req, res) {
   if (!validDate(date) || weekday(date) === 0 || weekday(date) === 6) return reply(res, 400, { error: "Choose a weekday date." });
   if (!/^\d{2}:\d{2}$/.test(time || "")) return reply(res, 400, { error: "Choose an available time." });
   const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
-  if (minute < OPEN_MINUTES || minute + DURATION > CLOSE_MINUTES || minute % 30 !== 0 || !["google_meet", "zoom", "whatsapp"].includes(method)) return reply(res, 400, { error: "That time or meeting method is not available." });
+  if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES || !["google_meet", "zoom", "whatsapp"].includes(method)) return reply(res, 400, { error: "That time or meeting method is not available." });
   if (typeof name !== "string" || name.trim().length < 2 || name.length > 100 || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return reply(res, 400, { error: "Enter your name and a valid email address." });
   if (method === "whatsapp" && (typeof phone !== "string" || phone.replace(/\D/g, "").length < 8)) return reply(res, 400, { error: "Enter a WhatsApp number with its country code." });
   if ([phone, company, topic].some(v => typeof v !== "string" || v.length > 1500)) return reply(res, 400, { error: "One of the booking fields is too long." });
   const startIso = localIso(date, time);
-  const endIso = new Date(new Date(startIso).getTime() + DURATION * 60000).toISOString();
+  const endIso = new Date(new Date(startIso).getTime() + HOLD_MINUTES * 60000).toISOString();
   let zoom = null;
   let event = null;
   try {
