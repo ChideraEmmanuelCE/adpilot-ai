@@ -153,6 +153,15 @@ async function sendOwnerWhatsApp(booking, meetingUrl) {
   return response.ok;
 }
 async function handler(req, res) {
+  if (req.method === "GET" && req.query.action === "methods") {
+    return reply(res, 200, {
+      googleMeet: configured(),
+      zoom: !!(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET),
+      whatsappCall: true,
+      ownerEmailNotification: !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
+      ownerWhatsAppNotification: !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.OWNER_WHATSAPP_NUMBER && process.env.WHATSAPP_BOOKING_TEMPLATE)
+    });
+  }
   if (req.method === "GET" && req.query.action === "availability") {
     const date = req.query.date;
     if (!validDate(date)) return reply(res, 400, { error: "Choose a valid date." });
