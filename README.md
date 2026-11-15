@@ -14,9 +14,9 @@ Northline is the working brand direction for a global business systems, automati
 - IP-based regional currency preference with manual override
 
 ## Currency behaviour
-The site uses ipwho.is for an initial IP geolocation lookup. A VPN exit IP is generally the address visible to the geolocation provider, but IP-based detection is not guaranteed. Users can override the detected currency manually; that preference is stored in local browser storage and is not overwritten by later automatic detection. USD is the fallback when geolocation fails or returns an unsupported currency.
+The site uses ipwho.is for an initial IP geolocation lookup. A VPN exit IP is generally the address visible to the geolocation provider, but IP-based detection is not guaranteed. Users can override the detected currency manually; that preference is stored in browser storage and is not overwritten by later automatic detection. USD is the fallback when geolocation fails or returns an unsupported currency.
 
-The selector sets the preferred quote currency and shows an indicative USD-to-selected-currency reference rate from ExchangeRate-API Open Access. The endpoint requires no API key, updates daily and requires attribution. The response is cached in browser storage until its next published update. Reference rates are informational only; payment providers, banks and card issuers may apply different rates, spreads or fees. No fixed service prices are published because project fees are scoped individually.
+The selector sets the preferred quote currency and shows an indicative USD-to-selected-currency reference rate from the open-source fawazahmed0/exchange-api project. It requires no API key, covers 200+ currencies and publishes daily rates. The page uses jsDelivr as the primary CDN and the project's Cloudflare Pages endpoint as a fallback, then caches the returned snapshot in browser storage for 24 hours. Reference rates are informational only; payment providers, banks and card issuers may apply different rates, spreads or fees. No fixed service prices are published because project fees are scoped individually.
 
 ## Important launch checks
 - **Northline is a proposed working name, not a cleared legal/trademark name.** Complete company-name, trademark and domain checks in the target markets before adopting it permanently.
