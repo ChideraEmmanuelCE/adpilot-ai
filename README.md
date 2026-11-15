@@ -16,7 +16,7 @@ Northline is the working brand direction for a global business systems, automati
 ## Currency behaviour
 The site uses ipwho.is for an initial IP geolocation lookup. A VPN exit IP is generally the address visible to the geolocation provider, but IP-based detection is not guaranteed. Users can override the detected currency manually; that preference is stored in local browser storage and is not overwritten by later automatic detection. USD is the fallback when geolocation fails or returns an unsupported currency.
 
-The selector currently sets the preferred quote currency. No fixed service prices or FX conversion calculator are published because project fees are scoped individually. If live converted price displays are added later, use a documented exchange-rate API and show the rate timestamp.
+The selector sets the preferred quote currency and shows an indicative USD-to-selected-currency reference rate from ExchangeRate-API Open Access. The endpoint requires no API key, updates daily and requires attribution. The response is cached in browser storage until its next published update. Reference rates are informational only; payment providers, banks and card issuers may apply different rates, spreads or fees. No fixed service prices are published because project fees are scoped individually.
 
 ## Important launch checks
 - **Northline is a proposed working name, not a cleared legal/trademark name.** Complete company-name, trademark and domain checks in the target markets before adopting it permanently.
