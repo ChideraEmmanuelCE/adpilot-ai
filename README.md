@@ -11,12 +11,13 @@ Northline is the working brand direction for a global business systems, automati
 - Interactive capability selector and business workflow scenarios
 - Engagement models: discovery and assessment, project delivery, ongoing partnership
 - FAQ and project enquiry modal
-- IP-based regional currency preference with manual override
+- IP-based regional currency preference with manual override and dynamically populated currency choices from the open FX feed
+- Three transparent starting-price packages ($200, $500 and $1,200+) with automatic regional conversion and quote details included in project enquiry
 
 ## Currency behaviour
 The site uses ipwho.is for an initial IP geolocation lookup. A VPN exit IP is generally the address visible to the geolocation provider, but IP-based detection is not guaranteed. Users can override the detected currency manually; that preference is stored in browser storage and is not overwritten by later automatic detection. USD is the fallback when geolocation fails or returns an unsupported currency.
 
-The selector sets the preferred quote currency and shows an indicative USD-to-selected-currency reference rate from the open-source fawazahmed0/exchange-api project. It requires no API key, covers 200+ currencies and publishes daily rates. The page uses jsDelivr as the primary CDN and the project's Cloudflare Pages endpoint as a fallback, then caches the returned snapshot in browser storage for 24 hours. Reference rates are informational only; payment providers, banks and card issuers may apply different rates, spreads or fees. No fixed service prices are published because project fees are scoped individually.
+The selector sets the preferred quote currency and shows an indicative USD-to-selected-currency reference rate from the open-source fawazahmed0/exchange-api project. It requires no API key, covers 200+ currencies and publishes daily rates. The page uses jsDelivr as the primary CDN and the project's Cloudflare Pages endpoint as a fallback, then caches the returned snapshot in browser storage for 24 hours. Reference rates are informational only; payment providers, banks and card issuers may apply different rates, spreads or fees. The pricing section publishes three indicative starting points: Automation Starter ($200), Operations Build ($500) and Custom Systems ($1,200+). Each is converted into the selected currency using the daily reference feed. These are starting estimates, not binding offers; scope, complexity, integrations, delivery requirements and support determine the final proposal. The selected package, indicative converted price, preferred currency and rate date are included in the prepared enquiry email.
 
 ## Important launch checks
 - **Northline is a proposed working name, not a cleared legal/trademark name.** Complete company-name, trademark and domain checks in the target markets before adopting it permanently.
