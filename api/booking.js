@@ -103,7 +103,7 @@ async function createZoomMeeting(startIso, name, email, topic) {
   return { id: meeting.id, url: meeting.join_url };
 }
 async function sendOwnerEmail(booking, meetingUrl) {
-  if (!process.env.RESEND_API_KEY) return false;
+  if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) return false;
   const start = new Date(localIso(booking.date, booking.time));
   const when = new Intl.DateTimeFormat("en-NG", { dateStyle: "full", timeStyle: "short", timeZone: TZ }).format(start) + " (Lagos time)";
   const text = [
@@ -220,8 +220,12 @@ async function handler(req, res) {
     event = await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events?sendUpdates=all" + (method === "google_meet" ? "&conferenceDataVersion=1" : ""), token, { method: "POST", body: JSON.stringify(eventBody) });
     let meetingUrl = zoom ? zoom.url : "";
     if (method === "google_meet") {
-      const points = event.conferenceData && event.conferenceData.entryPoints || [];
-      meetingUrl = (points.find(p => p.entryPointType === "video") || {}).uri || event.hangoutLink || "";
+      for (let attempt = 0; attempt < 3 && !meetingUrl; attempt++) {
+        const current = attempt === 0 ? event : await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events/" + encodeURIComponent(event.id), token);
+        const points = current.conferenceData && current.conferenceData.entryPoints || [];
+        meetingUrl = (points.find(p => p.entryPointType === "video") || {}).uri || current.hangoutLink || "";
+        if (!meetingUrl && attempt < 2) await new Promise(resolve => setTimeout(resolve, 1200));
+      }
     }
     const booking = { date, time, method: method === "google_meet" ? "Google Meet" : method === "zoom" ? "Zoom" : "WhatsApp call", name: name.trim(), email: email.trim(), phone, company, topic };
     const [emailSent, whatsappSent] = await Promise.all([
