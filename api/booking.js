@@ -131,35 +131,12 @@ async function sendOwnerEmail(booking, meetingUrl) {
   });
   return response.ok;
 }
-async function sendOwnerWhatsApp(booking, meetingUrl) {
-  const token = process.env.WHATSAPP_ACCESS_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-  const recipient = process.env.OWNER_WHATSAPP_NUMBER;
-  const template = process.env.WHATSAPP_BOOKING_TEMPLATE;
-  if (!token || !phoneId || !recipient || !template) return false;
-  const start = new Date(localIso(booking.date, booking.time));
-  const when = new Intl.DateTimeFormat("en-NG", { dateStyle: "medium", timeStyle: "short", timeZone: TZ }).format(start);
-  const parameters = [booking.name, booking.email, when, booking.method, meetingUrl || "WhatsApp call"];
-  const response = await fetch("https://graph.facebook.com/" + (process.env.WHATSAPP_GRAPH_VERSION || "v23.0") + "/" + phoneId + "/messages", {
-    method: "POST",
-    headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to: recipient,
-      type: "template",
-      template: { name: template, language: { code: process.env.WHATSAPP_TEMPLATE_LANGUAGE || "en" }, components: [{ type: "body", parameters: parameters.map(text => ({ type: "text", text: String(text).slice(0, 900) })) }] }
-    })
-  });
-  return response.ok;
-}
 async function handler(req, res) {
   if (req.method === "GET" && req.query.action === "methods") {
     return reply(res, 200, {
       googleMeet: configured(),
       zoom: !!(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET),
-      whatsappCall: true,
       ownerEmailNotification: !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
-      ownerWhatsAppNotification: !!(process.env.WHATSAPP_ACCESS_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID && process.env.OWNER_WHATSAPP_NUMBER && process.env.WHATSAPP_BOOKING_TEMPLATE)
     });
   }
   if (req.method === "GET" && req.query.action === "availability") {
@@ -193,9 +170,8 @@ async function handler(req, res) {
   if (!validDate(date) || weekday(date) === 0 || weekday(date) === 6) return reply(res, 400, { error: "Choose a weekday date." });
   if (!/^\d{2}:\d{2}$/.test(time || "")) return reply(res, 400, { error: "Choose an available time." });
   const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
-  if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES || !["google_meet", "zoom", "whatsapp"].includes(method)) return reply(res, 400, { error: "That time or meeting method is not available." });
+  if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES || !["google_meet", "zoom"].includes(method)) return reply(res, 400, { error: "That time or meeting method is not available." });
   if (typeof name !== "string" || name.trim().length < 2 || name.length > 100 || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return reply(res, 400, { error: "Enter your name and a valid email address." });
-  if (method === "whatsapp" && (typeof phone !== "string" || phone.replace(/\D/g, "").length < 8)) return reply(res, 400, { error: "Enter a WhatsApp number with its country code." });
   if ([phone, company, topic].some(v => typeof v !== "string" || v.length > 1500)) return reply(res, 400, { error: "One of the booking fields is too long." });
   const startIso = localIso(date, time);
   const endIso = new Date(new Date(startIso).getTime() + HOLD_MINUTES * 60000).toISOString();
@@ -218,7 +194,7 @@ async function handler(req, res) {
       "Phone: " + (phone || "Not provided"),
       "Company: " + (company || "Not provided"),
       "Discussion: " + (topic || "Not provided"),
-      method === "whatsapp" ? "WhatsApp voice call. The host will manually initiate the call at the agreed time." : (zoom ? "Zoom: " + zoom.url : "Google Meet")
+      zoom ? "Zoom: " + zoom.url : "Google Meet"
     ].join("\n");
     const eventBody = {
       summary: "Northline meeting — " + name.trim(),
@@ -233,7 +209,6 @@ async function handler(req, res) {
     };
     if (method === "google_meet") eventBody.conferenceData = { createRequest: { requestId: "northline-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10), conferenceSolutionKey: { type: "hangoutsMeet" } } };
     if (zoom) eventBody.location = zoom.url;
-    if (method === "whatsapp") eventBody.location = "WhatsApp voice call — " + phone;
     event = await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events?sendUpdates=all" + (method === "google_meet" ? "&conferenceDataVersion=1" : ""), token, { method: "POST", body: JSON.stringify(eventBody) });
     let meetingUrl = zoom ? zoom.url : "";
     if (method === "google_meet") {
@@ -245,14 +220,11 @@ async function handler(req, res) {
       }
     }
     const booking = { date, time, method: method === "google_meet" ? "Google Meet" : method === "zoom" ? "Zoom" : "WhatsApp call", name: name.trim(), email: email.trim(), phone, company, topic };
-    const [emailSent, whatsappSent] = await Promise.all([
-      sendOwnerEmail(booking, meetingUrl).catch(error => { console.error("booking email:", error.message); return false; }),
-      sendOwnerWhatsApp(booking, meetingUrl).catch(error => { console.error("booking WhatsApp:", error.message); return false; })
-    ]);
+    const emailSent = await sendOwnerEmail(booking, meetingUrl).catch(error => { console.error("booking email:", error.message); return false; });
     return reply(res, 200, {
-      message: method === "whatsapp" ? "Your time is reserved. The WhatsApp voice call will be initiated manually at the agreed time." : "Your meeting is confirmed. A calendar invitation has been sent to your email.",
+      message: "Your meeting is confirmed. A calendar invitation has been sent to your email.",
       meetingUrl,
-      notifications: { email: emailSent, whatsapp: whatsappSent },
+      notifications: { email: emailSent },
       calendarEventId: event.id
     });
   } catch (error) {
