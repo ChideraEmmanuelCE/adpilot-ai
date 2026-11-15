@@ -1,24 +1,31 @@
-# AdPilot AI
+# Northline
 
-**Autonomous advertising. Smarter growth.**
+**Make the work work better.**
 
-AdPilot AI is a responsive marketing website for an AI-assisted advertising operations product.
+Northline is the working brand direction for a global business systems, automation and technology partner. The website positions the business around practical operational improvement rather than a single AI advertising product.
 
-## Current implementation
-- Responsive static landing page
-- Product capability and business-value sections
-- Interactive NGN pricing benchmark calculator (20% of a comparable traditional agency quote)
-- Clear separation of service fees and advertising media spend
-- FAQ, contact CTA, mobile navigation
-- Sample dashboard metrics clearly labeled as illustrative
+## Website experience
+- Editorial, responsive design with a restrained visual system
+- Animated light/dark theme transition with saved preference
+- Mobile navigation and scroll-triggered section reveals
+- Interactive capability selector and business workflow scenarios
+- Engagement models: discovery and assessment, project delivery, ongoing partnership
+- FAQ and project enquiry modal
+- IP-based regional currency preference with manual override
 
-## Pricing model
-The introductory benchmark is 20% of a comparable traditional agency quote for the same agreed scope. Media spend is separate. The calculator is illustrative only and is not a binding quote or verified market-price comparison.
+## Currency behaviour
+The site uses ipwho.is for an initial IP geolocation lookup. A VPN exit IP is generally the address visible to the geolocation provider, but IP-based detection is not guaranteed. Users can override the detected currency manually; that preference is stored in local browser storage and is not overwritten by later automatic detection. USD is the fallback when geolocation fails or returns an unsupported currency.
 
-## Important product status
-This repository currently contains the marketing website only. It does not yet implement user accounts, a backend, an AI campaign engine, live advertising-platform integrations, or automatic campaign execution. Those capabilities require product engineering, authorized advertising accounts, API credentials, and secure backend configuration.
+The selector currently sets the preferred quote currency. No fixed service prices or FX conversion calculator are published because project fees are scoped individually. If live converted price displays are added later, use a documented exchange-rate API and show the rate timestamp.
 
-The contact CTA currently uses the placeholder address `hello@adpilotai.com`; replace it with a verified business inbox before launch.
+## Important launch checks
+- **Northline is a proposed working name, not a cleared legal/trademark name.** Complete company-name, trademark and domain checks in the target markets before adopting it permanently.
+- The contact form currently prepares an email using hello@adpilotai.com, inherited as a placeholder from the previous build. Replace this with a verified business inbox before launch.
+- Review the final service list, commercial terms, delivery claims and supported markets with the team before publishing.
+- No customer logos, testimonials, case-study metrics or client outcome claims are fabricated on this site. Workflow examples are explicitly illustrative.
+
+## Current product status
+This repository contains the marketing website. It does not yet implement customer accounts, a backend, production AI agents, live client integrations, or automated execution of client workflows. Those capabilities require separate implementation, authorized client access, secure credentials, testing and operational controls.
 
 ## Deploy
-Deploy the repository root to Vercel as a static site. No build command is required; `index.html` is the entry point.
+The website is a static page. Deploy the repository root to Vercel; index.html is the entry point and no build command is required.
