@@ -72,7 +72,7 @@ document.addEventListener('click',e=>{
     if(!date.value)date.value=localToday();
   }
   openModal('bookingModal');
-  if(typeof loadBookingSlots==='function')loadBookingSlots();
+  if(typeof loadBookingAvailability==='function')loadBookingAvailability();
 },true);
 // Theme preference and animated colour transition.
 const savedTheme=localStorage.getItem('northline-theme');if(savedTheme)document.documentElement.dataset.theme=savedTheme;function syncTheme(){const dark=document.documentElement.dataset.theme==='dark';$('#themeIcon').textContent=dark?'☼':'☾';$('#themeToggle').setAttribute('aria-label',dark?'Switch to light mode':'Switch to dark mode');document.querySelector('meta[name="theme-color"]').content=dark?'#101713':'#f5f4ef'}syncTheme();$('#themeToggle').addEventListener('click',()=>{const next=document.documentElement.dataset.theme==='dark'?'light':'dark';document.documentElement.dataset.theme=next;localStorage.setItem('northline-theme',next);syncTheme()});
