@@ -74,39 +74,6 @@ async function getBusy(date, token) {
   if (entry.errors && entry.errors.length) throw new Error("Google Calendar could not check this calendar's availability.");
   return entry.busy || [];
 }
-async function createZoomMeeting(startIso, name, email, topic) {
-  if (!process.env.ZOOM_ACCOUNT_ID || !process.env.ZOOM_CLIENT_ID || !process.env.ZOOM_CLIENT_SECRET) {
-    throw new Error("Zoom booking is not connected yet. Please choose Google Meet or try again later.");
-  }
-  const basic = Buffer.from(process.env.ZOOM_CLIENT_ID + ":" + process.env.ZOOM_CLIENT_SECRET).toString("base64");
-  const tokenResponse = await fetch("https://zoom.us/oauth/token?grant_type=account_credentials&account_id=" + encodeURIComponent(process.env.ZOOM_ACCOUNT_ID), {
-    method: "POST", headers: { Authorization: "Basic " + basic }
-  });
-  const tokenData = await tokenResponse.json().catch(() => ({}));
-  if (!tokenResponse.ok || !tokenData.access_token) {
-    const zoomCode = tokenData.error || tokenData.code || "unknown_error";
-    const zoomReason = tokenData.reason || tokenData.error_description || tokenData.message || "No error description returned";
-    console.error("Zoom OAuth token rejected:", JSON.stringify({ status: tokenResponse.status, code: zoomCode, reason: zoomReason }));
-    throw new Error("Zoom authorisation failed. Check the Server-to-Server OAuth app.");
-  }
-  const start = new Date(startIso);
-  const meetingResponse = await fetch("https://api.zoom.us/v2/users/me/meetings", {
-    method: "POST",
-    headers: { Authorization: "Bearer " + tokenData.access_token, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      topic: "Northline meeting — " + name,
-      type: 2,
-      start_time: start.toISOString(),
-      duration: HOLD_MINUTES,
-      timezone: TZ,
-      agenda: [topic, "Booked by: " + name, "Email: " + email].filter(Boolean).join("\n"),
-      settings: { join_before_host: false, waiting_room: true, approval_type: 2 }
-    })
-  });
-  const meeting = await meetingResponse.json();
-  if (!meetingResponse.ok || !meeting.join_url) throw new Error("Zoom could not create the meeting.");
-  return { id: meeting.id, url: meeting.join_url };
-}
 async function sendOwnerEmail(booking, meetingUrl) {
   if (!process.env.RESEND_API_KEY || !process.env.RESEND_FROM_EMAIL) return false;
   const start = new Date(localIso(booking.date, booking.time));
@@ -140,7 +107,6 @@ async function handler(req, res) {
   if (req.method === "GET" && req.query.action === "methods") {
     return reply(res, 200, {
       googleMeet: configured(),
-      zoom: !!(process.env.ZOOM_ACCOUNT_ID && process.env.ZOOM_CLIENT_ID && process.env.ZOOM_CLIENT_SECRET),
       ownerEmailNotification: !!(process.env.RESEND_API_KEY && process.env.RESEND_FROM_EMAIL),
     });
   }
@@ -175,12 +141,11 @@ async function handler(req, res) {
   if (!validDate(date) || weekday(date) === 0 || weekday(date) === 6) return reply(res, 400, { error: "Choose a weekday date." });
   if (!/^\d{2}:\d{2}$/.test(time || "")) return reply(res, 400, { error: "Choose an available time." });
   const minute = Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
-  if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES || !["google_meet", "zoom"].includes(method)) return reply(res, 400, { error: "That time or meeting method is not available." });
+  if (minute < OPEN_MINUTES || minute + HOLD_MINUTES > CLOSE_MINUTES || method !== "google_meet") return reply(res, 400, { error: "That time or meeting method is not available." });
   if (typeof name !== "string" || name.trim().length < 2 || name.length > 100 || typeof email !== "string" || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 200) return reply(res, 400, { error: "Enter your name and a valid email address." });
   if ([phone, company, topic].some(v => typeof v !== "string" || v.length > 1500)) return reply(res, 400, { error: "One of the booking fields is too long." });
   const startIso = localIso(date, time);
   const endIso = new Date(new Date(startIso).getTime() + HOLD_MINUTES * 60000).toISOString();
-  let zoom = null;
   let event = null;
   try {
     const token = await googleToken();
@@ -190,16 +155,15 @@ async function handler(req, res) {
     if (start.getTime() <= Date.now() || busy.some(p => new Date(p.start) < end && new Date(p.end) > start)) {
       return reply(res, 409, { error: "That slot has just become unavailable. Please choose another time." });
     }
-    if (method === "zoom") zoom = await createZoomMeeting(startIso, name.trim(), email.trim(), topic.trim());
     const description = [
       "Northline introductory meeting.",
-      "Meeting method: " + method,
+      "Meeting method: Google Meet",
       "Name: " + name.trim(),
       "Email: " + email.trim(),
       "Phone: " + (phone || "Not provided"),
       "Company: " + (company || "Not provided"),
       "Discussion: " + (topic || "Not provided"),
-      zoom ? "Zoom: " + zoom.url : "Google Meet"
+      "Google Meet"
     ].join("\n");
     const eventBody = {
       summary: "Northline meeting — " + name.trim(),
@@ -213,9 +177,8 @@ async function handler(req, res) {
       reminders: { useDefault: true }
     };
     if (method === "google_meet") eventBody.conferenceData = { createRequest: { requestId: "northline-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10), conferenceSolutionKey: { type: "hangoutsMeet" } } };
-    if (zoom) eventBody.location = zoom.url;
     event = await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events?sendUpdates=all" + (method === "google_meet" ? "&conferenceDataVersion=1" : ""), token, { method: "POST", body: JSON.stringify(eventBody) });
-    let meetingUrl = zoom ? zoom.url : "";
+    let meetingUrl = "";
     if (method === "google_meet") {
       for (let attempt = 0; attempt < 3 && !meetingUrl; attempt++) {
         const current = attempt === 0 ? event : await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events/" + encodeURIComponent(event.id), token);
@@ -224,7 +187,7 @@ async function handler(req, res) {
         if (!meetingUrl && attempt < 2) await new Promise(resolve => setTimeout(resolve, 1200));
       }
     }
-    const booking = { date, time, method: method === "google_meet" ? "Google Meet" : method === "zoom" ? "Zoom" : "WhatsApp call", name: name.trim(), email: email.trim(), phone, company, topic };
+    const booking = { date, time, method: "Google Meet", name: name.trim(), email: email.trim(), phone, company, topic };
     const emailSent = await sendOwnerEmail(booking, meetingUrl).catch(error => { console.error("booking email:", error.message); return false; });
     return reply(res, 200, {
       message: "Your meeting is confirmed. A calendar invitation has been sent to your email.",
@@ -237,7 +200,7 @@ async function handler(req, res) {
     if (event && event.id) {
       try { const token = await googleToken(); await googleRequest("/calendars/" + encodeURIComponent(CALENDAR_ID) + "/events/" + encodeURIComponent(event.id), token, { method: "DELETE" }); } catch (cleanupError) { console.error("booking rollback:", cleanupError.message); }
     }
-    return reply(res, 502, { error: error.message.includes("Zoom") ? error.message : "We could not complete the booking. No confirmation has been sent. Please try another slot." });
+    return reply(res, 502, { error: "We could not complete the booking. No confirmation has been sent. Please try another slot." });
   }
 }
 module.exports = handler;
