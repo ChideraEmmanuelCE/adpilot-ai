@@ -82,8 +82,13 @@ async function createZoomMeeting(startIso, name, email, topic) {
   const tokenResponse = await fetch("https://zoom.us/oauth/token?grant_type=account_credentials&account_id=" + encodeURIComponent(process.env.ZOOM_ACCOUNT_ID), {
     method: "POST", headers: { Authorization: "Basic " + basic }
   });
-  const tokenData = await tokenResponse.json();
-  if (!tokenResponse.ok || !tokenData.access_token) throw new Error("Zoom authorisation failed. Check the Server-to-Server OAuth app.");
+  const tokenData = await tokenResponse.json().catch(() => ({}));
+  if (!tokenResponse.ok || !tokenData.access_token) {
+    const zoomCode = tokenData.error || tokenData.code || "unknown_error";
+    const zoomReason = tokenData.reason || tokenData.error_description || tokenData.message || "No error description returned";
+    console.error("Zoom OAuth token rejected:", JSON.stringify({ status: tokenResponse.status, code: zoomCode, reason: zoomReason }));
+    throw new Error("Zoom authorisation failed. Check the Server-to-Server OAuth app.");
+  }
   const start = new Date(startIso);
   const meetingResponse = await fetch("https://api.zoom.us/v2/users/me/meetings", {
     method: "POST",
