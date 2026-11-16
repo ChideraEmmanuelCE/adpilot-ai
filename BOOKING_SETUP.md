@@ -17,15 +17,6 @@ Generate a refresh token for the calendar account `chideraemmanuelokpala@gmail.c
 
 The OAuth consent screen must be configured for the intended production use. Keep all credentials server-side; never put them in index.html or a NEXT_PUBLIC variable.
 
-## Optional: Zoom
-
-Create a Zoom Server-to-Server OAuth app and grant meeting creation/read-write permissions. Add:
-
-- `ZOOM_ACCOUNT_ID`
-- `ZOOM_CLIENT_ID`
-- `ZOOM_CLIENT_SECRET`
-
-The booking API creates a scheduled Zoom meeting and places its join URL in the calendar event.
 
 ## Optional: email notification to the owner
 
@@ -54,7 +45,7 @@ The API sends a template message to the owner. WhatsApp Cloud API does not provi
 
 - Availability is read from Google Calendar for each date.
 - The selected slot is checked again immediately before event creation.
-- Google Meet events request a conference link; Zoom meetings are created through Zoom's API.
+- Google Meet events request a conference link.
 - WhatsApp calls are calendar reservations only, not an automatically dialled call.
 - Email and WhatsApp owner notifications are attempted after the calendar event is created. Missing notification credentials do not cancel an otherwise confirmed calendar booking; the API returns notification delivery flags.
 - Do not describe bookings as live until the Google OAuth environment variables are configured and a real end-to-end test succeeds.
